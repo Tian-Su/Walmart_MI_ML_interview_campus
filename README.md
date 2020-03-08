@@ -14,4 +14,6 @@ Tasks:
 
 What to turn in:
 1. Create a branch with this format: date_firstname_lastname. In my case, it will be 20200229_tian_su. Please use all lower case.
-2. Commit your report and code. Please don't include the data set. 
+2. Create a folder in your branch with this format: firstname_lastname. In my case, it will be tian_su. Please use all lower case.
+3. Put your report and code in the aforementioned folder. Please don't include the data set. Commit. Push to the Github as a branch (date_firstname_lastname). 
+4. Create a pull request to master branch.
