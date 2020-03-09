@@ -1,0 +1,180 @@
+---
+title: "jae_ham_code"
+author: "Jae Woong Ham"
+date: "3/9/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+### Getting data
+```{r}
+high_data = read.csv("C:/users/jaeha/Downloads/covid_19_data.csv", header = TRUE)
+open_line = read.csv("C:/users/jaeha/Downloads/COVID19_open_line_list.csv", header = TRUE)
+line_list = read.csv("C:/users/jaeha/Downloads/COVID19_line_list_data.csv", header = TRUE)
+
+time_deaths = read.csv("C:/users/jaeha/Downloads/time_series_covid_19_deaths.csv", header = TRUE)
+time_confirm = read.csv("C:/users/jaeha/Downloads/time_series_covid_19_confirmed.csv", header = TRUE)
+time_recov = read.csv("C:/users/jaeha/Downloads/time_series_covid_19_recovered.csv", header = TRUE)
+```
+
+### EDA On Time Series on Confirmed Cases
+```{r}
+#Focus on the places with enough data i.e. with at least 1000 confirmed cases by the last data point
+df = time_confirm[time_confirm[, ncol(time_confirm)] > 1000, ]
+
+#Getting the dates
+time = substring(colnames(df)[6:ncol(df)], 2)
+
+#Time Series of top 5 places with confirmed cases
+guangdong = as.numeric(df[1,6:ncol(df)])
+henan = as.numeric(df[2,6:ncol(df)])
+hubei = as.numeric(df[3,6:ncol(df)])
+hunan = as.numeric(df[4,6:ncol(df)])
+zhejiang = as.numeric(df[5,6:ncol(df)])
+library(ggplot2)
+par(mfrow = c(1,2))
+plot(1:length(time), guangdong, xlab = "Time in Days", ylab = "Confirmed in GuangDong")
+plot(1:length(time), henan, xlab = "Time in Days", ylab = "Confirmed in Henan")
+```
+
+### EDA just focus on GuangDong without loss of generality
+```{r}
+par(mfrow = c(1,1))
+
+#Check Differencing
+plot(1:length(diff(guangdong)), diff(guangdong), xlab = "", ylab = "Lag 1 Differencing")
+
+#ACF Plot
+acf(diff(guangdong))
+
+#PACF Plot
+pacf(diff(guangdong))
+```
+
+### Building ARMA Models
+```{r}
+#Building ARMA
+model_arma = function(data, p , d, q) {
+  return(arima(data, order = c(p,d,q)))
+}
+
+#Initialization for ARMA parameters
+p = 1:2
+d = 1
+q = 1:3
+
+#Fitting Models
+models = list()
+models[[1]] = model_arma(guangdong, p = p[1], d = 1, q = q[1])
+models[[2]] = model_arma(guangdong, p = p[1], d = 1, q = q[2])
+models[[3]] = model_arma(guangdong, p = p[1], d = 1, q = q[3])
+models[[4]] = model_arma(guangdong, p = p[2], d = 1, q = q[1])
+models[[5]] = model_arma(guangdong, p = p[2], d = 1, q = q[2])
+models[[6]] = model_arma(guangdong, p = p[2], d = 1, q = q[1])
+
+#Checking AIC
+AIC_vals = sapply(models, AIC)
+p_q = c("(1,1)", "(1,2)", "(1,3)", "(2,1)", "(2,2)", "(2,3)")
+AICs = data.frame(AIC_vals)
+row.names(AICs) = p_q
+AICs
+```
+
+### Cross Validation For ARMA
+```{r}
+#Main CV function
+cv_error <- function(data, p = 0, q = 0, d = 1, l = 3) {
+  len = length(data); sum_error = vector()
+  for (i in 1:l) {
+    train_data = data[1:(len-l)]
+    arima.fit = arima(x = train_data, order = c(p, d, q))
+    predic = predict(arima.fit, n.ahead = l)$pred
+    actual = data[-(1:(len-l))]
+    sum_error[i] = sum((predic - actual)^2)
+  }
+  return(sum(sum_error)/l)
+}
+
+#Getting Errors
+error = vector()
+error[1] = cv_error(guangdong, p = p[1], d = 1, q = q[1],l = 3)
+error[2] = cv_error(guangdong, p = p[1], d = 1, q = q[2],l = 3)
+error[3] = cv_error(guangdong, p = p[1], d = 1, q = q[3],l = 3)
+error[4] = cv_error(guangdong, p = p[2], d = 1, q = q[1],l = 3)
+error[5] = cv_error(guangdong, p = p[2], d = 1, q = q[2],l = 3)
+error[6] = cv_error(guangdong, p = p[2], d = 1, q = q[3],l = 3)
+
+matrix(error, nrow = 1, dimnames = list(c("CV Error"), p_q))
+```
+
+### Plotting
+```{r}
+library(RColorBrewer)
+pal = brewer.pal(8, "Dark2")
+
+#Winner Model based on CV errors
+winner_model = arima(x = guangdong, order = c(1, 1, 3))
+
+#Plotting Function
+plot_predic = function(model, data, ahead = 5, main_title) {
+  predic = predict(model, n.ahead = ahead)
+  new_data = c(data, predic$pred)
+  lower_bound = predic$pred - 1.96*predic$se
+  upper_bound = predic$pred + 1.96*predic$se
+  mfrow = c(1,1)
+  plot(x = 1:length(new_data), y = new_data, type = "l", col = pal[1], lwd = 2, ylab = "Confirmed Cases", xlab = "Time In Days", main = main_title, ylim = c(0, max(upper_bound)))
+  abline(v = length(data), col = "red")
+  lines(lower_bound, col=pal[2], lwd = 0.5)
+  lines(upper_bound, col=pal[2], lwd = 0.5)
+}
+
+#Choose Best model and plotting prediction
+par(mfrow = c(1,1))
+plot_predic(winner_model, guangdong, ahead = 20, "20 Days Ahead Prediction for Guangdong")
+
+prediction_ARMA = predict(winner_model, n.ahead = 20)$pred
+```
+
+### Smoothing Splines
+```{r}
+#Cross Validation for Smooth SPlines
+cv_spline <- function(data, freedom, l = 5, ahead = 5) {
+  len = length(data); sum_error = vector()
+  for (i in 1:l) {
+    train_data = data[1:(len-l)]
+    fit = smooth.spline(x = 1:length(train_data), train_data, df = freedom)
+    predic = predict(fit, x = (length(train_data)+1):(length(train_data) + ahead))$y
+    actual = data[-(1:(len-l))]
+    sum_error[i] = sum((predic - actual)^2)
+  }
+  return(sum(sum_error)/l)
+}
+
+#Initialization for degrees of freedom
+freedom = 3:20
+ahead = 5
+
+errors = vector()
+for (i in 1:length(freedom)) {
+  errors[i] = cv_spline(data = guangdong, freedom = freedom[i], l = 5)
+}
+
+#Choosing best spline model
+winner_spline = smooth.spline(x = 1:length(guangdong), guangdong, df = 21)
+par(mfrow = c(1,1))
+
+#Plotting
+prediction_spline = predict(winner_spline, x = (length(guangdong)+1):(length(guangdong) + 20))$y
+
+new = c(guangdong, prediction_spline)
+cols = c(rep("black", length(guangdong)), rep("red", 20))
+plot(x = 1:length(new), y = new, col = cols, xlab = "Time", ylab = "Prediction of 20 New Data Points", main = "Smoothing Splines")
+```
+
+### Comparison of ARMA and Smoothed Splines
+```{r}
+paste("Prediction for Next 20 Days for ARMA is:", paste(as.character(prediction_ARMA)))
+paste("Prediction for Next 20 Days for Smoothed Splines is:", paste(as.character(prediction_spline)))
+```
+
