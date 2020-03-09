@@ -20,5 +20,5 @@ What to turn in:
 
 Notes:
 1. Feel free to use internet. 
-2. You can use your old code. You can also code downloaded from internet. Any code > 5 lines borrowed from others should be cited. 
+2. You can use your old code. You can also use code found on the internet. Any code > 5 lines borrowed from others should be cited. 
 3. You can merge in additional dataset to help your analysis. Any additional dataset should be cited. 
