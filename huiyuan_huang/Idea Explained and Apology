@@ -1,0 +1,9 @@
+Idea explained:
+
+In a word, I am trying to cluster areas in world into different groups based on the confirmed coronavirus case number time series. And my ultimate goal is to assign locations outside of China into different groups, so we can get a sense of how the situation in these locations might be going be comparing them to their other Chinese group members.
+
+I am only using the daily growth rate where confirmed case number is growing from 100 to 500, since I think this period is the most representative. By doing so, the growth rate series for different areas actually have different lengths. So I am trying to use Dynamic Time Warping (DTW) to measure the similarity of time series with different length and use k-means to cluter them into different groups. 
+
+I only finished the part getting length-varying growth rate time series for different locations. I tried to use some codes for DTW K-means from Github, but all the python codes have some bugs and I have difficulties debugging them since I haven't really learn DTW K-means before. I just feel like I should be able to do so.
+
+Sorry for not finishing a model. Also sorry for not being able to creating the branch and uploading the code on time. But the last modified time of my code should be with the time limit, if it is fine.
